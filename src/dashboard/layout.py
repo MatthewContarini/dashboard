@@ -2,7 +2,7 @@ from rich.layout import Layout
 
 # Fixed heights and widths
 CONTENT_LEFT_WIDTH    = 21
-CONTENT_RIGHT_WIDTH   = 20
+CONTENT_RIGHT_WIDTH   = 25
 RIGHT_TOP_HEIGHT      = 12
 FOOTER_HEIGHT         = 3
 

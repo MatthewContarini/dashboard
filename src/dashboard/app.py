@@ -139,11 +139,11 @@ def main():
                         node = node[part]
                     node.update(comp.render())
 
-                # throttle update rate: fast when in any entry mode, slower otherwise
-                if state.command_mode or state.in_input or state.dist_mode:
-                    time.sleep(0.01)
-                else:
-                    time.sleep(1/10)
+                # # throttle update rate: fast when in any entry mode, slower otherwise
+                # if state.command_mode or state.in_input or state.dist_mode:
+                #     time.sleep(0.01)
+                # else:
+                #     time.sleep(1/100)
 
         except KeyboardInterrupt:
             pass

@@ -13,20 +13,29 @@ from ..config import PRIMARY_BORDER_COLOUR, PRIMARY_FONT_STYLE, \
 
 class WindCompassComponent(Component):
     """
-    Renders a 3x3 compass rose with the current wind direction highlighted.
-    The center dot is always highlighted. If wind speed is very low (<1 km/h),
-    only the center dot is highlighted.
+    Renders a 3x3 compass rose showing where the wind is blowing.
+    The center shows an arrow indicating wind direction.
+    If wind speed is very low (<5 km/h), only the center dot is shown.
     """
+
     def update(self, state: State) -> None:
         pass
 
     def render(self) -> RenderableType:
-        # Get raw wind data
         raw_dir = get_wind_dir().upper()
         speed = get_wind_speed()
 
-        # Map API directions to the 8 compass points
-        direction_mapping = {
+
+        # 16-point compass: FROM direction → TO direction
+        to_direction_mapping = {
+            'N': 'S', 'NNE': 'SSW', 'NE': 'SW', 'ENE': 'WSW',
+            'E': 'W', 'ESE': 'WNW', 'SE': 'NW', 'SSE': 'NNW',
+            'S': 'N', 'SSW': 'NNE', 'SW': 'NE', 'WSW': 'ENE',
+            'W': 'E', 'WNW': 'ESE', 'NW': 'SE', 'NNW': 'SSE'
+        }
+
+        # Reduce to 8 compass points that match the 3×3 grid
+        grid_direction_mapping = {
             'N': 'N', 'NNE': 'N', 'NNW': 'N',
             'NE': 'NE', 'ENE': 'NE',
             'E': 'E', 'ESE': 'E',
@@ -36,53 +45,60 @@ class WindCompassComponent(Component):
             'W': 'W', 'WNW': 'W',
             'NW': 'NW', 'NNW': 'NW'
         }
-        # Determine which compass point to highlight
-        compass_point = direction_mapping.get(raw_dir)
-        cardinal_dirs = ["N", "E", "S", "W"]
-        # If very low speed, ignore direction
-        if speed < 5:
-            compass_point = None
 
-        # Define the 3x3 display grid
+        # Step 1: where is the wind going?
+        to_dir_full = to_direction_mapping.get(raw_dir, None)
+        compass_point = grid_direction_mapping.get(to_dir_full, None)
+
+        # Step 2: determine arrow or dot
+        if speed < 5 or compass_point is None:
+            compass_point = None
+            center_arrow = '·'
+        else:
+            center_arrow = {
+                'N': '↑',
+                'NE': '↗',
+                'E': '→',
+                'SE': '↘',
+                'S': '↓',
+                'SW': '↙',
+                'W': '←',
+                'NW': '↖',
+            }.get(compass_point, '·')
+
+        # 3x3 compass grid
         grid_labels = [
-            ['NW ', 'N',  'NE'],
-            [' W ',  '.',  'E'],
-            ['SW ', 'S',  'SE'],
+            ['NW ', 'N',  ' NE'],
+            [' W',  '.',  'E'],
+            ['SW ', 'S',  ' SE'],
         ]
 
-        # Build lines for each compass row
         lines = []
+                
         for row in grid_labels:
             parts = []
             for label in row:
-                if label == '.':
-                    # center dot always highlighted
-                    style = SECONDARY_HIGHLIGHT_FONT_STYLE
-                    disp = ' · '
-                elif label == compass_point:
-                    # current wind direction highlighted
-                    style = SECONDARY_HIGHLIGHT_FONT_STYLE
-                    disp = f'{label.center(3)}'
-                elif str.strip(label) in cardinal_dirs:
-                    # cardinal directions use primary style
-                    style = PRIMARY_FONT_STYLE
-                    disp = f'{label.center(3)}'
+                label_text = label        # e.g. ' W '
+                clean = label.strip()     # e.g. 'W'
+
+                if clean == '.':
+                    style, disp = SECONDARY_HIGHLIGHT_FONT_STYLE, f' {center_arrow} '
+                elif clean == compass_point:
+                    style, disp = SECONDARY_HIGHLIGHT_FONT_STYLE, label_text
+                elif clean in ["N", "E", "S", "W"]:
+                    style, disp = PRIMARY_FONT_STYLE, label_text
                 else:
-                    # intercardinal points use subtle highlight
-                    style = SUBTLE_HIGHLIGHT_FONT_STYLE
-                    disp = f'{label.center(3)}'
+                    style, disp = SUBTLE_HIGHLIGHT_FONT_STYLE, label_text
 
                 parts.append(Text(disp, style=style))
             lines.append(Text.assemble(*parts))
 
-        # Append a line for speed value
+
         speed_text = Text(f"{speed:.1f} km/h", style=SECONDARY_HIGHLIGHT_FONT_STYLE)
-        lines.append(Text())  # blank spacer
+        lines.append(Text())
         lines.append(speed_text)
 
-        # Center the group
         body = Align.center(Group(*lines), vertical='middle')
-
         return Panel(
             body,
             title="Wind Compass",

@@ -1,76 +1,42 @@
-from rich.console import RenderableType, Group
+import time
+from pathlib import Path
+from rich.console import RenderableType
 from rich.panel import Panel
-from rich.table import Table
 from rich.text import Text
 from rich.align import Align
-from rich import box
-from datetime import datetime
 
 from dashboard.components.base import Component
 from dashboard.state import State
 from ..config import PRIMARY_BORDER_COLOUR, PRIMARY_BOX_STYLE, PRIMARY_FONT_STYLE
 
+ANIMATION_FRAMES_DIR = Path(__file__).parent.parent / "animations" / "title_animation"
+ANIMATION_FPS        = 50.0  # desired banner framerate
+
 class TitleComponent(Component):
-    """
-    Renders the ASCII banner at the top of the dashboard.
-    """
     def __init__(self):
-        self._banner = ""
-        self._frames = [
-            r"""
-        ___
-        /   \
-        \___/
+        # load text‐frames
+        self._frames = []
+        if ANIMATION_FRAMES_DIR.exists():
+            for p in sorted(ANIMATION_FRAMES_DIR.glob("*.txt")):
+                self._frames.append(p.read_text(encoding="utf-8"))
+        if not self._frames:
+            self._frames = ["Taringa Updater"]
 
-    Taringa Updater
-    """,
-                r"""
-        ___
-        /     \
-        \ ___ /
-
-    Taringa Updater
-    """,
-                r"""
-        ___
-    /       \
-    \  ___  /
-
-    Taringa Updater
-    """,
-                r"""
-        ___
-    \       /
-    /  ___  \
-
-    Taringa Updater
-    """,
-                r"""
-        ___
-        \     /
-        / ___ \
-
-    Taringa Updater
-    """,
-                r"""
-        ___
-        \   /
-        /___\
-
-    Taringa Updater
-""",
-        ]
-        self._current_frame = 0
+        # time‐based indexing
+        self._start_time = time.monotonic()
+        self._banner     = self._frames[0]
 
     def update(self, state: State) -> None:
-        # Pick the current frame, then advance the index (wrap around)
-        self._banner = self._frames[self._current_frame]
-        self._current_frame = (self._current_frame + 1) % len(self._frames)
-
+        # compute how many seconds since init
+        elapsed = time.monotonic() - self._start_time
+        # compute which frame we *should* be on
+        frame_idx = int(elapsed * ANIMATION_FPS) % len(self._frames)
+        self._banner = self._frames[frame_idx]
 
     def render(self) -> RenderableType:
-        banner_text = Text(self._banner, style=PRIMARY_FONT_STYLE)
-        # Center horizontally
-        return Panel(Align(banner_text, align='center', vertical='middle'), 
-                     border_style=PRIMARY_BORDER_COLOUR,
-                     box=PRIMARY_BOX_STYLE)
+        txt = Text(self._banner, style=PRIMARY_FONT_STYLE)
+        return Panel(
+            Align(txt, align="center", vertical="middle"),
+            border_style=PRIMARY_BORDER_COLOUR,
+            box=PRIMARY_BOX_STYLE,
+        )
